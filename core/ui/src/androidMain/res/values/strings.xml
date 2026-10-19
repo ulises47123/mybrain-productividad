@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mi Cerebro</string>
+    <string name="reminders_channel_description">Canal de notificaciones para enviar recordatorios de tareas</string>
+    <string name="reminders_channel_name">Recordatorios</string>
+    <string name="complete">Completar</string>
+    <string name="notes">Notas</string>
+    <string name="tasks">Tareas</string>
+    <string name="tasks_widget_settings">Ajustes del widget de tareas</string>
+    <string name="notes_widget_settings">Ajustes del widget de notas</string>
+    <string name="calendar_widget_settings">Ajustes del widget de calendario</string>
+    <string name="widget_background_opacity">Opacidad del fondo</string>
+    <string name="widget_background_opacity_description">Una opacidad menor deja ver tu fondo de pantalla. Los dispositivos Samsung compatibles también aplican el desenfoque de widgets de One UI.</string>
+    <string name="save">Guardar</string>
+    <string name="calendar">Calendario</string>
+    <string name="due_date">Fecha de vencimiento</string>
+    <string name="error_empty_title">El título no puede estar vacío</string>
+    <string name="cancel">Cancelar</string>
+    <string name="no_tasks_message">No hay tareas</string>
+    <string name="no_notes_message">No hay notas</string>
+    <string name="bookmark_saved">Marcador guardado correctamente</string>
+    <string name="invalid_url">URL no válida</string>
+    <string name="no_read_calendar_permission_message">Se necesita el permiso de lectura del calendario para que esta función esté disponible.\nPor favor, concede el permiso</string>
+    <string name="go_to_settings">Ir a ajustes</string>
+    <string name="added_task">Añadido a tareas</string>
+    <string name="no_events">No hay eventos</string>
+    <string name="loading">Cargando…</string>
+    <string name="calendar_widget_refresh_message">Pulsa el botón de actualizar si ya concediste el permiso</string>
+    <string name="thursday_30_calendar_preview">Jueves 30</string>
+    <string name="sunday_5_calendar_preview">Domingo 5</string>
+    <string name="dinner_with_ali_calender_preview">Cena con Ali</string>
+    <string name="cs_lecture_calender_preview">Clase de informática</string>
+    <string name="visit_dentist_tasks_preview">Ir al dentista</string>
+    <string name="buy_groceries_tasks_preview">Comprar víveres</string>
+    <string name="call_mom_tasks_preview">Llamar a mamá</string>
+    <string name="auth_title">Desbloquea para usar la app</string>
+    <string name="added_note">Añadido a notas</string>
+    <string name="add_note">Añadir nota</string>
+    <string name="save_bookmark">Guardar enlace</string>
+    <string name="add_to_tasks">Añadir a tareas</string>
+    <string name="add_task_to_my_brain">Añadir tarea a Mi Cerebro</string>
+    <string name="exception_stack_trace_copied">Traza de la excepción copiada al portapapeles</string>
+    <string name="app_visible_description">Gestiona notas, tareas, marcadores y diario.</string>
+</resources>

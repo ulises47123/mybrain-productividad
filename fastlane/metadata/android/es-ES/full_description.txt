@@ -1,0 +1,11 @@
+Mi Cerebro es una aplicación de productividad todo en uno y asistente de IA para Tareas, Notas, Calendario, Diario y Marcadores.
+
+<b>Características:</b>
+- Local y privada, sin recopilar ningún dato.
+- Crea tareas con prioridad, subtareas, fecha de vencimiento y recordatorios.
+- Crea notas con soporte de markdown, que te permite usar encabezados, listas, enlaces, etc.
+- Registra tu estado de ánimo a diario y consulta su resumen con gráficos atractivos.
+- Guarda marcadores para más tarde desde el menú de compartir de cualquier otra app.
+- Consulta los eventos de tu calendario en una vista moderna y también con un widget para la pantalla de inicio.
+- Pantalla de panel para ver tus tareas, eventos del calendario y más, y tener tu día de un vistazo.
+- Asistente de IA que te ayuda con tu flujo de trabajo diario. Puedes chatear y adjuntar notas, tareas o eventos del calendario a tus conversaciones, o incluso combinarlos para una planificación completa.
