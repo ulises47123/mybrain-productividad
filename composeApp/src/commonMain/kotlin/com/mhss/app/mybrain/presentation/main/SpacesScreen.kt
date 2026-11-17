@@ -1,15 +1,33 @@
 package com.mhss.app.mybrain.presentation.main
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import com.mhss.app.ui.ic_import
+import com.mhss.app.ui.import_transcription
+import com.mhss.app.ui.transcription_space_subtitle
+import org.jetbrains.compose.resources.painterResource
+import sv.lib.squircleshape.CornerSmoothing
+import sv.lib.squircleshape.SquircleShape
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -116,6 +134,55 @@ fun SpacesScreen(
                 )
 
             }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                ImportTranscriptionCard(
+                    onClick = { navController.navigate(Screen.ImportTranscriptionScreen) }
+                )
+            }
+        }
+    }
+}
+
+/** Acceso a "Importar transcripción": clase o reunión → tareas, fechas, notas y cuaderno. */
+@Composable
+private fun ImportTranscriptionCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = SquircleShape(32.dp, CornerSmoothing.Medium),
+        elevation = CardDefaults.elevatedCardElevation(8.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .singleGradientBackground(
+                    gradientColor = Blue,
+                    background = MaterialTheme.colorScheme.surfaceVariant,
+                    backgroundAlpha = 0.35f,
+                )
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.import_transcription),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+                Text(
+                    text = stringResource(Res.string.transcription_space_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                painter = painterResource(Res.drawable.ic_import),
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

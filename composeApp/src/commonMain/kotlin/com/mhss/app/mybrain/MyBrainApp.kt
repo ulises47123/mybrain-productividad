@@ -58,6 +58,7 @@ import com.mhss.app.presentation.TasksScreen
 import com.mhss.app.presentation.TasksSearchScreen
 import com.mhss.app.presentation.backup.ImportExportScreen
 import com.mhss.app.presentation.integrations.IntegrationsScreen
+import com.mhss.app.presentation.transcription.ImportTranscriptionScreen
 import com.mhss.app.ui.AppFont
 import com.mhss.app.ui.Res
 import com.mhss.app.ui.StartUpScreenSettings
@@ -343,6 +344,12 @@ fun MyBrainApp(
                     exitTransition = { slideOutTransition() },
                 ) {
                     AssistantScreen(navController = navController)
+                }
+                composable<Screen.ImportTranscriptionScreen>(
+                    enterTransition = { slideInTransition() },
+                    exitTransition = { slideOutTransition() },
+                ) {
+                    ImportTranscriptionScreen(navController = navController)
                 }
             }
             if (!appUnlocked) {

@@ -87,6 +87,8 @@ import com.mhss.app.ui.components.notes.NoteCard
 import com.mhss.app.ui.create_folder
 import com.mhss.app.ui.folders
 import com.mhss.app.ui.ic_add
+import com.mhss.app.ui.ic_import
+import com.mhss.app.ui.import_transcription
 import com.mhss.app.ui.ic_create_folder
 import com.mhss.app.ui.ic_folder
 import com.mhss.app.ui.ic_search
@@ -141,9 +143,17 @@ fun NotesScreen(
         },
         topBar = {
             MyBrainAppBar(
-                if (selectedTab == 0) stringResource(Res.string.notes) else stringResource(
+                title = if (selectedTab == 0) stringResource(Res.string.notes) else stringResource(
                     Res.string.folders
-                )
+                ),
+                actions = {
+                    IconButton(onClick = { navController.navigate(Screen.ImportTranscriptionScreen) }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_import),
+                        contentDescription = stringResource(Res.string.import_transcription)
+                    )
+                }
+                }
             )
         },
         floatingActionButtonPosition = FabPosition.Center,

@@ -94,4 +94,7 @@ sealed class Screen {
 
     @Serializable
     data object AssistantScreen : Screen()
+
+    @Serializable
+    data object ImportTranscriptionScreen : Screen()
 }

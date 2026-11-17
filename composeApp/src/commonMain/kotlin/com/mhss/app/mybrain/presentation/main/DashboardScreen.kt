@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +20,9 @@ import com.mhss.app.presentation.CalendarDashboardWidget
 import com.mhss.app.presentation.MoodCircularBar
 import com.mhss.app.presentation.TasksDashboardWidget
 import com.mhss.app.ui.Res
+import com.mhss.app.ui.ic_import
+import com.mhss.app.ui.import_transcription
+import org.jetbrains.compose.resources.painterResource
 import com.mhss.app.ui.components.common.MyBrainAppBar
 import com.mhss.app.ui.dashboard
 import com.mhss.app.ui.navigation.Screen
@@ -31,7 +36,17 @@ fun DashboardScreen(
 ) {
     Scaffold(
         topBar = {
-            MyBrainAppBar(stringResource(Res.string.dashboard))
+            MyBrainAppBar(
+                title = stringResource(Res.string.dashboard),
+                actions = {
+                    IconButton(onClick = { navController.navigate(Screen.ImportTranscriptionScreen) }) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_import),
+                        contentDescription = stringResource(Res.string.import_transcription)
+                    )
+                }
+                }
+            )
         }
     ) {paddingValues ->
         LaunchedEffect(true) { viewModel.onDashboardEvent(DashboardEvent.InitAll) }

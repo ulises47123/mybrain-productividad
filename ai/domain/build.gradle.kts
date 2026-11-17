@@ -19,12 +19,18 @@ kotlin {
                 implementation(projects.notes.domain)
                 implementation(projects.tasks.domain)
                 implementation(projects.calendar.domain)
+                implementation(projects.core.datetime)
 
                 api(libs.androidx.paging.common)
                 implementation(libs.kotlinx.coroutines.core)
 
                 implementation(project.dependencies.platform(libs.koin.bom))
                 implementation(libs.bundles.koin)
+            }
+        }
+        commonTest {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
     }
