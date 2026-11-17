@@ -259,10 +259,23 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- No se borra el proveedor entero: ProfileInstallerInitializer lo necesita para instalar
+             el baseline profile. Se saca WorkManager, que se inicializa con workManagerFactory() de Koin. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+            <!-- Antes tampoco corría (se borraba el proveedor entero); evita cargar la fuente de emojis al arrancar. -->
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
 
         <provider

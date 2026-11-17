@@ -67,6 +67,30 @@ android {
             isDebuggable = true
             resValue("string", "app_name", "Mi Cerebro Debug")
         }
+        // Versión optimizada para el celular propio: R8 + recursos reducidos + baseline profile,
+        // pero con el MISMO paquete (.debug) y la MISMA firma (debug.keystore) que la debug ya
+        // instalada, así `adb install -r` actualiza encima sin perder datos y la app Soledad
+        // conserva el permiso de firma LEER_TAREAS.
+        create("personal") {
+            initWith(getByName("release"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-personal"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            ndk {
+                // El Xiaomi es arm64; armeabi-v7a queda por compatibilidad con el otro celular.
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
+        }
+    }
+    sourceSets {
+        // Reusar los perfiles generados para release (baseline + startup) en la variante personal.
+        getByName("personal") {
+            baselineProfiles.directories.add("src/release/generated/baselineProfiles")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
