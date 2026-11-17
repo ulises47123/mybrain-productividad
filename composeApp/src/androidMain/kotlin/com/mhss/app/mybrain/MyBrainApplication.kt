@@ -51,6 +51,7 @@ import com.mhss.app.presentation.di.SettingsPresentationModule
 import com.mhss.app.presentation.di.TasksPresentationModule
 import com.mhss.app.storage.di.StorageModule
 import com.mhss.app.ui.R
+import com.mhss.app.widget.WidgetAutoUpdater
 import com.mhss.app.widget.di.WidgetModule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -73,6 +74,7 @@ class MyBrainApplication : Application() {
     private val getPreference: GetPreferenceUseCase by inject()
     private val tombstoneCleanupScheduler: TombstoneCleanupScheduler by inject()
     private val syncOrchestrator: SyncOrchestrator by inject()
+    private val widgetAutoUpdater: WidgetAutoUpdater by inject()
     private val deviceKeyStore: DeviceKeyStore by inject()
     private val pairedDevicesRepository: PairedDevicesRepository by inject()
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -87,6 +89,8 @@ class MyBrainApplication : Application() {
         }
         loadNotesModule()
         scheduleTombstoneCleanup()
+        // Los widgets se actualizan ante cualquier cambio (borrar, completar, importar, sincronizar…).
+        widgetAutoUpdater.start(appScope)
 
         appScope.launch {
             deviceKeyStore.getCurrentDeviceId()
