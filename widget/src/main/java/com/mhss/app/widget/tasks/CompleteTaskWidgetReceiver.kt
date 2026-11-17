@@ -3,6 +3,7 @@ package com.mhss.app.widget.tasks
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.glance.appwidget.updateAll
 import com.mhss.app.domain.use_case.GetTaskByIdUseCase
 import com.mhss.app.domain.use_case.UpdateTaskCompletedUseCase
 import kotlinx.coroutines.CoroutineDispatcher
@@ -28,6 +29,9 @@ class CompleteTaskWidgetReceiver : BroadcastReceiver(), KoinComponent {
             try {
                 val task = getTaskById(id) ?: return@launch
                 completeTask(task, completed)
+                // Este toque pudo haber creado el proceso recién: WidgetAutoUpdater quizá tomó su
+                // primera foto con la tarea ya completada y no ve "cambio", así que se redibuja acá.
+                TasksWidget().updateAll(context)
             } finally {
                 pendingResult.finish()
             }

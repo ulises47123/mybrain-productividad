@@ -129,8 +129,7 @@ class ImportJsonDataUseCaseImpl(
                 TASKS -> {
                     val task = json.decodeFromJsonElement<BackupTask>(item)
                     upsertTaskUseCase(
-                        task = task.copy(id = task.id.toSafeBackupId()).toTask(),
-                        updateWidget = false
+                        task = task.copy(id = task.id.toSafeBackupId()).toTask()
                     )
                 }
 

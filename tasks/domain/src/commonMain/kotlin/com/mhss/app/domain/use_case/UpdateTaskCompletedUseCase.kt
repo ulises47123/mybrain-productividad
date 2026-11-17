@@ -14,8 +14,7 @@ class UpdateTaskCompletedUseCase(
                 isCompleted = completed,
                 updatedDate = now()
             ),
-            previousTask = task,
-            updateWidget = true
+            previousTask = task
         )
     }
 }

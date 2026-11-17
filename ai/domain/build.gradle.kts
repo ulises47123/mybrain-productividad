@@ -19,6 +19,7 @@ kotlin {
                 implementation(projects.notes.domain)
                 implementation(projects.tasks.domain)
                 implementation(projects.calendar.domain)
+                implementation(projects.core.widget)
                 implementation(projects.core.datetime)
 
                 api(libs.androidx.paging.common)

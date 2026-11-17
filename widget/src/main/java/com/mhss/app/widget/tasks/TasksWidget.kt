@@ -1,5 +1,6 @@
 package com.mhss.app.widget.tasks
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,6 +31,7 @@ import com.mhss.app.widget.WidgetSettings
 import com.mhss.app.widget.WidgetTheme
 import com.mhss.app.widget.widgetDarkColorScheme
 import com.mhss.app.widget.widgetLightColorScheme
+import com.mhss.app.widget.WidgetAutoUpdater
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -95,4 +97,15 @@ class TasksWidget : GlanceAppWidget(), KoinComponent {
 
 class TasksWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = TasksWidget()
+
+    // Avisan a WidgetAutoUpdater para que empiece (o deje) de observar según haya widgets puestos.
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
 }

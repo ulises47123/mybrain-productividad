@@ -1,5 +1,6 @@
 package com.mhss.app.widget.calendar
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.CompositionLocalProvider
@@ -31,6 +32,7 @@ import com.mhss.app.widget.WidgetTheme
 import com.mhss.app.widget.widgetDarkColorScheme
 import com.mhss.app.widget.widgetLightColorScheme
 import kotlinx.coroutines.flow.first
+import com.mhss.app.widget.WidgetAutoUpdater
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -99,4 +101,15 @@ class CalendarWidget : GlanceAppWidget(), KoinComponent {
 
 class CalendarWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = CalendarWidget()
+
+    // Avisan a WidgetAutoUpdater para que empiece (o deje) de observar según haya widgets puestos.
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
 }

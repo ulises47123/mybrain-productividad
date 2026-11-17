@@ -5,7 +5,6 @@ import com.mhss.app.alarm.use_case.UpsertAlarmUseCase
 import com.mhss.app.domain.model.Task
 import com.mhss.app.domain.model.TaskFrequency
 import com.mhss.app.domain.repository.TaskRepository
-import com.mhss.app.widget.WidgetUpdater
 import kotlinx.datetime.DateTimePeriod
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
@@ -19,12 +18,12 @@ class UpsertTaskUseCase(
     private val tasksRepository: TaskRepository,
     private val upsertAlarm: UpsertAlarmUseCase,
     private val deleteAlarmUseCase: DeleteAlarmUseCase,
-    private val widgetUpdater: WidgetUpdater
 ) {
+    // El widget de tareas lo redibuja WidgetAutoUpdater, que observa la consulta del widget:
+    // cubre altas, ediciones, completadas, borrados, importaciones y sincronización con una sola vía.
     suspend operator fun invoke(
         task: Task,
         previousTask: Task? = null,
-        updateWidget: Boolean = true,
         notifySyncChanges: Boolean = true
     ): Boolean {
         val nowMillis = now().toEpochMilliseconds()
@@ -49,7 +48,6 @@ class UpsertTaskUseCase(
         }
 
         tasksRepository.upsertTask(updatedTask, notifyChange = notifySyncChanges)
-        if (updateWidget) widgetUpdater.updateAll(WidgetUpdater.WidgetType.Tasks)
 
         return isAlarmSchedulingValid(updatedTask)
     }

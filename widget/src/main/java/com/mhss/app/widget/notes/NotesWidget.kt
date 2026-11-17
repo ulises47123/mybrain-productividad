@@ -1,5 +1,6 @@
 package com.mhss.app.widget.notes
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.collectAsState
@@ -27,6 +28,7 @@ import com.mhss.app.widget.WidgetSettings
 import com.mhss.app.widget.WidgetTheme
 import com.mhss.app.widget.widgetDarkColorScheme
 import com.mhss.app.widget.widgetLightColorScheme
+import com.mhss.app.widget.WidgetAutoUpdater
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -86,4 +88,15 @@ class NotesWidget : GlanceAppWidget(), KoinComponent {
 
 class NotesWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = NotesWidget()
+
+    // Avisan a WidgetAutoUpdater para que empiece (o deje) de observar según haya widgets puestos.
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        WidgetAutoUpdater.avisarCambioDeWidgets()
+    }
 }

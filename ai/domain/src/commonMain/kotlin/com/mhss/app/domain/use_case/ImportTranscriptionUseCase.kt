@@ -8,6 +8,7 @@ import com.mhss.app.domain.transcription.NOTEBOOK_FOLDER_NAME
 import com.mhss.app.domain.transcription.TranscriptionImportResult
 import com.mhss.app.domain.transcription.TranscriptionItem
 import com.mhss.app.domain.transcription.TranscriptionPriority
+import com.mhss.app.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDateTime
@@ -33,7 +34,8 @@ class ImportTranscriptionUseCase(
     private val addCalendarEvent: AddCalendarEventUseCase,
     private val upsertNote: UpsertNoteUseCase,
     private val searchNoteFolders: SearchNoteFoldersByNameUseCase,
-    private val createNoteFolder: CreateNoteFolderUseCase
+    private val createNoteFolder: CreateNoteFolderUseCase,
+    private val widgetUpdater: WidgetUpdater
 ) {
     /**
      * @param calendarId calendario donde se crean los eventos (si el teléfono no tiene ninguno,
@@ -93,7 +95,8 @@ class ImportTranscriptionUseCase(
                                 end = end,
                                 allDay = item.allDay,
                                 calendarId = calendarId
-                            )
+                            ),
+                            updateWidget = false // se redibuja una sola vez al final
                         )
                         result = if (id != null) result.copy(events = result.events + 1)
                         else result.copy(failed = result.failed + 1)
@@ -126,6 +129,17 @@ class ImportTranscriptionUseCase(
             } catch (e: Exception) {
                 e.printStackTrace()
                 result = result.copy(failed = result.failed + 1)
+            }
+        }
+        // Tareas y notas: WidgetAutoUpdater redibuja su widget una vez (con demora) al ver los cambios.
+        // Calendario: un solo redibujo para toda la importación, en vez de uno por evento.
+        if (result.events > 0) {
+            try {
+                widgetUpdater.updateAll(WidgetUpdater.WidgetType.Calendar)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
         return result

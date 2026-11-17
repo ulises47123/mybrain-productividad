@@ -13,6 +13,9 @@ class WidgetUpdaterImpl(
     override suspend fun updateAll(type: WidgetUpdater.WidgetType) {
         when (type) {
             WidgetUpdater.WidgetType.Calendar -> {
+                // Marca la hora para que WidgetAutoUpdater no repita este redibujo cuando le llegue
+                // el aviso del proveedor de calendario por este mismo cambio.
+                WidgetAutoUpdater.registrarActualizacionCalendario()
                 CalendarWidget().updateAll(context)
             }
             WidgetUpdater.WidgetType.Tasks -> {

@@ -26,7 +26,6 @@ import com.mhss.app.storage.BufferedFileWriter
 import com.mhss.app.storage.ReadJsonFileResult
 import com.mhss.app.storage.StorageManager
 import com.mhss.app.storage.WriteTextFileResult
-import com.mhss.app.widget.WidgetUpdater
 import dev.mokkery.answering.calls
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
@@ -99,7 +98,6 @@ class ImportJsonDataUseCaseImplTest {
             tasksRepository = taskRepository,
             upsertAlarm = UpsertAlarmUseCase(alarmRepository, alarmScheduler),
             deleteAlarmUseCase = DeleteAlarmUseCase(alarmRepository, alarmScheduler),
-            widgetUpdater = mock<WidgetUpdater>()
         )
         useCase = ImportJsonDataUseCaseImpl(
             storageManager = storage,
