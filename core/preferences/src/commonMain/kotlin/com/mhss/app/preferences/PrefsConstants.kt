@@ -31,6 +31,8 @@ object PrefsConstants {
     const val ANTHROPIC_KEY = "anthropic_key"
     const val OPEN_ROUTER_MODEL_KEY = "open_router_model"
     const val OPEN_ROUTER_KEY = "open_router_key"
+    const val NVIDIA_MODEL_KEY = "nvidia_model"
+    const val NVIDIA_KEY = "nvidia_key"
 
     const val LM_STUDIO_MODEL_KEY = "lm_studio_model"
     const val LM_STUDIO_URL_KEY = "lm_studio_url"

@@ -53,6 +53,16 @@ enum class AiProvider(
         keyInfoUrl = "https://openrouter.ai/keys",
         modelsInfoUrl = "https://openrouter.ai/models"
     ),
+    // NVIDIA (build.nvidia.com): API compatible con OpenAI. La clave la carga el usuario en Ajustes.
+    Nvidia(
+        id = 8,
+        keyPref = PrefsConstants.NVIDIA_KEY,
+        modelPref = PrefsConstants.NVIDIA_MODEL_KEY,
+        defaultModel = "nvidia/nemotron-3.5-super-vl-120b-a12b",
+        keyInfoUrl = "https://build.nvidia.com",
+        modelsInfoUrl = "https://build.nvidia.com/models",
+        defaultBaseUrl = "https://integrate.api.nvidia.com/v1"
+    ),
     LmStudio(
         id = 5,
         keyPref = null,

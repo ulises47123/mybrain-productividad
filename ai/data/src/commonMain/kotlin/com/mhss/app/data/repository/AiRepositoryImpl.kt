@@ -25,6 +25,8 @@ import com.mhss.app.data.parseApiKeys
 import com.mhss.app.data.toKeyFailure
 import com.mhss.app.data.buildChatPrompt
 import com.mhss.app.data.buildChatSystemMessage
+import com.mhss.app.data.llmParams
+import com.mhss.app.domain.stripReasoningBlocks
 import com.mhss.app.data.nano.GeminiNanoException
 import com.mhss.app.data.nano.toAssistantResult
 import com.mhss.app.data.nowMillis
@@ -125,7 +127,12 @@ class AiRepositoryImpl(
 
         val model = llModel ?: throw AiRepositoryException(AssistantResult.OtherError("Model not selected"))
 
-        val llmPrompt = prompt("user_prompt", LLMParams()) {
+        val llmPrompt = prompt(
+            "user_prompt",
+            selectedProvider.llmParams(
+                maxTokens = if (selectedProvider == AiProvider.Nvidia) NVIDIA_PROMPT_MAX_TOKENS else null
+            )
+        ) {
             user(prompt)
         }
 
@@ -192,7 +199,7 @@ class AiRepositoryImpl(
                     throw AiRepositoryException(AssistantResult.ToolCallLimitExceeded)
                 }
 
-                val chatPrompt = currentMessages.buildChatPrompt(chatSystemMessage)
+                val chatPrompt = currentMessages.buildChatPrompt(chatSystemMessage, selectedProvider)
                 val result = withKeyRotation { executor ->
                     executor.execute(
                         prompt = chatPrompt,
@@ -205,6 +212,13 @@ class AiRepositoryImpl(
                 val assistantMessage = result
                     .takeIf { it.textContent().isNotBlank() }
                     ?.toNewAssistantMessage()
+                    ?.let { message ->
+                        // Por si el modelo de NVIDIA igual deja el razonamiento en el texto
+                        if (selectedProvider == AiProvider.Nvidia) {
+                            message.copy(content = message.content.stripReasoningBlocks())
+                                .takeIf { it.content.isNotBlank() }
+                        } else message
+                    }
 
                 if (toolCalls.isEmpty()) {
                     assistantMessage?.let { emit(it) }
@@ -356,6 +370,8 @@ class AiRepositoryImpl(
 
 }
 
+private const val NVIDIA_PROMPT_MAX_TOKENS = 16_384
+
 private val koogHttpClientFactory by lazy {
     KtorKoogHttpClient.Factory(baseClient = HttpClient(CIO))
 }
@@ -390,6 +406,14 @@ private fun AiProvider.getExecutor(key: String, customUrl: String, llModel: LLMo
                 baseUrl = customUrl
             )
         }
+        AiProvider.Nvidia -> OpenAILLMClient(
+            apiKey = key,
+            // Koog agrega "v1/chat/completions" a la URL base, por eso va sin el /v1 final
+            settings = OpenAIClientSettings(
+                baseUrl = defaultBaseUrl.orEmpty().removeSuffix("/").removeSuffix("/v1")
+            ),
+            httpClientFactory = koogHttpClientFactory
+        )
         AiProvider.LmStudio -> OpenAILLMClient(
             apiKey = "",
             settings = OpenAIClientSettings(baseUrl = customUrl),

@@ -212,6 +212,7 @@
     <string name="openrouter" translatable="false">OpenRouter</string>
     <string name="ollama" translatable="false">Ollama</string>
     <string name="lm_studio" translatable="false">LM Studio</string>
+    <string name="nvidia" translatable="false">NVIDIA</string>
     <string name="openai">OpenAI</string>
     <string name="model">Modelo</string>
     <string name="custom_url">URL personalizada</string>

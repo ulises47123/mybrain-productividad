@@ -20,20 +20,41 @@ import kotlinx.datetime.format.char
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
-fun List<AiMessage>.buildChatPrompt(systemMessage: String) = compactForPrompt().let { compacted ->
+fun List<AiMessage>.buildChatPrompt(
+    systemMessage: String,
+    provider: AiProvider = AiProvider.None
+) = compactForPrompt().let { compacted ->
     val system = if (compacted.size < size) systemMessage + "\n" + HISTORY_TRIMMED_NOTE else systemMessage
-    compacted.buildPromptMessages(system)
+    compacted.buildPromptMessages(system, provider.llmParams(CHAT_MAX_OUTPUT_TOKENS))
 }
 
-private fun List<AiMessage>.buildPromptMessages(systemMessage: String) = prompt(
+/**
+ * Parámetros de la petición según el proveedor.
+ * NVIDIA (Nemotron) razona por defecto: se apaga con chat_template_kwargs.enable_thinking = false
+ * y se manda el max_tokens clásico en lugar de max_completion_tokens.
+ */
+fun AiProvider.llmParams(maxTokens: Int? = null): LLMParams = when (this) {
+    AiProvider.Nvidia -> LLMParams(
+        additionalProperties = buildMap {
+            put("chat_template_kwargs", buildJsonObject { put("enable_thinking", false) })
+            if (maxTokens != null) put("max_tokens", JsonPrimitive(maxTokens))
+        }
+    )
+    else -> LLMParams(maxTokens = maxTokens)
+}
+
+private fun List<AiMessage>.buildPromptMessages(systemMessage: String, params: LLMParams) = prompt(
     "chat_prompt",
-    LLMParams(maxTokens = CHAT_MAX_OUTPUT_TOKENS)
+    params
 ) {
     system(systemMessage)
     forEach { message ->
@@ -164,7 +185,8 @@ fun String.toLLModel(provider: AiProvider, withTools: Boolean): LLModel {
             }
             add(LLMCapability.Completion)
             if (llmProvider == LLMProvider.OpenAI){
-                add(LLMCapability.OpenAIEndpoint.Responses)
+                // NVIDIA solo expone /v1/chat/completions (no la Responses API)
+                if (provider != AiProvider.Nvidia) add(LLMCapability.OpenAIEndpoint.Responses)
                 add(LLMCapability.OpenAIEndpoint.Completions)
             }
         },
@@ -178,6 +200,7 @@ fun AiProvider.toLLMProvider() = when (this) {
     AiProvider.Gemini -> LLMProvider.Google
     AiProvider.Anthropic -> LLMProvider.Anthropic
     AiProvider.OpenRouter -> LLMProvider.OpenRouter
+    AiProvider.Nvidia -> LLMProvider.OpenAI
     AiProvider.Ollama -> LLMProvider.Ollama
     AiProvider.LmStudio -> LLMProvider.OpenAI
     AiProvider.GeminiNano -> LLMProvider.Google

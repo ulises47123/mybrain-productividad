@@ -9,10 +9,12 @@ import com.mhss.app.ui.ic_anthropic
 import com.mhss.app.ui.ic_gemini
 import com.mhss.app.ui.ic_gemini_nano
 import com.mhss.app.ui.ic_lmstudio
+import com.mhss.app.ui.ic_nvidia
 import com.mhss.app.ui.ic_ollama
 import com.mhss.app.ui.ic_openai
 import com.mhss.app.ui.ic_openrouter
 import com.mhss.app.ui.lm_studio
+import com.mhss.app.ui.nvidia
 import com.mhss.app.ui.ollama
 import com.mhss.app.ui.openai
 import com.mhss.app.ui.openrouter
@@ -29,6 +31,7 @@ enum class AiProviderOption(
     GeminiNano(AiProvider.GeminiNano, Res.string.gemini_nano, Res.drawable.ic_gemini_nano),
     Anthropic(AiProvider.Anthropic, Res.string.anthropic, Res.drawable.ic_anthropic),
     OpenRouter(AiProvider.OpenRouter, Res.string.openrouter, Res.drawable.ic_openrouter),
+    Nvidia(AiProvider.Nvidia, Res.string.nvidia, Res.drawable.ic_nvidia),
     LmStudio(AiProvider.LmStudio, Res.string.lm_studio, Res.drawable.ic_lmstudio),
     Ollama(AiProvider.Ollama, Res.string.ollama, Res.drawable.ic_ollama);
 }
