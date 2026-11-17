@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.paging.cachedIn
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -114,16 +115,23 @@ class MainViewModel(
         )
     }
 
-    private fun collectDashboardData() = viewModelScope.launch {
-        combine(
-            getTaskSummary(),
-            getDiaryForChart(Long.MIN_VALUE, Long.MAX_VALUE)
-        ) { summary, entries ->
-            uiState = uiState.copy(
-                dashBoardEntries = entries,
-                taskSummary = summary
-            )
-        }.collect()
+    // El Panel dispara InitAll cada vez que vuelve a la pantalla; sin esto se acumulaba un
+    // combine(...) nuevo en viewModelScope por cada visita (colectores duplicados).
+    private var dashboardDataJob: Job? = null
+
+    private fun collectDashboardData() {
+        if (dashboardDataJob?.isActive == true) return
+        dashboardDataJob = viewModelScope.launch {
+            combine(
+                getTaskSummary(),
+                getDiaryForChart(Long.MIN_VALUE, Long.MAX_VALUE)
+            ) { summary, entries ->
+                uiState = uiState.copy(
+                    dashBoardEntries = entries,
+                    taskSummary = summary
+                )
+            }.collect()
+        }
     }
 
     fun disableAppLock() = viewModelScope.launch {
