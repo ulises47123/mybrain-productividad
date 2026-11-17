@@ -16,6 +16,12 @@
     <uses-permission android:name="com.google.android.apps.aicore.service.BIND_SERVICE" />
 
 
+    <!-- Lectura de tareas solo para apps propias firmadas con la misma clave (por ejemplo, Soledad). -->
+    <permission
+        android:name="com.mhss.app.mybrain.permission.LEER_TAREAS"
+        android:label="Leer tareas de My Brain"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".MyBrainApplication"
         android:allowBackup="false"
@@ -258,6 +264,13 @@
             android:authorities="${applicationId}.androidx-startup"
             tools:node="remove" />
 
+
+        <provider
+            android:name="com.mhss.app.mybrain.data.ProveedorTareas"
+            android:authorities="${applicationId}.tareas"
+            android:exported="true"
+            android:readPermission="com.mhss.app.mybrain.permission.LEER_TAREAS"
+            android:writePermission="com.mhss.app.mybrain.permission.LEER_TAREAS" />
 
     </application>
 
