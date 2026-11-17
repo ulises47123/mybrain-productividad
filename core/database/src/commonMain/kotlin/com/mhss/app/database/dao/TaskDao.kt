@@ -51,6 +51,10 @@ interface TaskDao {
     @Query("SELECT * FROM tasks")
     suspend fun getAllFullTasks(): List<TaskEntity>
 
+    /** Solo las pendientes (usa el índice de is_completed). */
+    @Query("SELECT * FROM tasks WHERE is_completed = 0")
+    suspend fun getPendingFullTasks(): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE id > :afterId ORDER BY id LIMIT :limit")
     suspend fun getFullTasksPage(afterId: String, limit: Int): List<TaskEntity>
 

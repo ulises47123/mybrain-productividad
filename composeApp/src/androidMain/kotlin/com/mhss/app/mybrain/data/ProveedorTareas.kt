@@ -30,8 +30,8 @@ class ProveedorTareas : ContentProvider() {
     ): Cursor {
         val soloPendientes = uri.lastPathSegment != "todas"
         val dao = GlobalContext.get().get<TaskDao>()
-        val tareas = runBlocking { dao.getAllFullTasks() }
-            .filter { !soloPendientes || !it.isCompleted }
+        // Las pendientes se filtran en SQL (índice is_completed) en vez de traer todas a memoria.
+        val tareas = runBlocking { if (soloPendientes) dao.getPendingFullTasks() else dao.getAllFullTasks() }
             .sortedWith(compareBy({ it.dueDate ?: Long.MAX_VALUE }, { -it.priority }))
         val c = MatrixCursor(COLUMNAS)
         for (t in tareas) {

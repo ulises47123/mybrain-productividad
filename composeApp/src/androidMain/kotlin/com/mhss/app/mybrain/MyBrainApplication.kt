@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.pm.ApplicationInfo
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -65,6 +66,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.annotation.KoinApplication
+import org.koin.core.logger.Level
 import org.koin.core.context.loadKoinModules
 import org.koin.plugin.module.dsl.startKoin
 import kotlin.system.exitProcess
@@ -84,7 +86,8 @@ class MyBrainApplication : Application() {
         startKoin<MyBrainKoinApp> {
             allowOverride(true)
             androidContext(this@MyBrainApplication)
-            androidLogger()
+            // INFO registra cada definición al arrancar; solo errores en la versión optimizada.
+            androidLogger(if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) Level.INFO else Level.ERROR)
             workManagerFactory()
         }
         loadNotesModule()
