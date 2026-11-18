@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import com.mhss.app.domain.repository.NoteRepository
+import com.mhss.app.database.dao.DiaryDao
 import com.mhss.app.database.dao.TaskDao
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -18,6 +19,7 @@ import org.koin.core.context.GlobalContext
  *
  * content://<applicationId>.tareas/pendientes  → tareas sin completar
  * content://<applicationId>.tareas/todas       → todas
+ * content://<applicationId>.tareas/animo       → ánimo anotado en el diario estos días (solo fecha y valor 1 a 5; NUNCA el título ni el texto)
  * content://<applicationId>.tareas/notas       → notas (título, texto recortado, carpeta y fecha), para que Soledad
  *                                                pueda contestar «¿tenés el cuaderno de inglés?»
  */
@@ -33,6 +35,7 @@ class ProveedorTareas : ContentProvider() {
         sortOrder: String?,
     ): Cursor {
         if (uri.lastPathSegment == "notas") return notas()
+        if (uri.lastPathSegment == "animo") return animo()
         val soloPendientes = uri.lastPathSegment != "todas"
         val dao = GlobalContext.get().get<TaskDao>()
         // Las pendientes se filtran en SQL (índice is_completed) en vez de traer todas a memoria.
@@ -53,6 +56,15 @@ class ProveedorTareas : ContentProvider() {
                 )
             )
         }
+        return c
+    }
+
+    private fun animo(): Cursor {
+        // getChartPoints selecciona solo created_date y mood: lo escrito en el diario no sale de la base.
+        val ahora = System.currentTimeMillis()
+        val puntos = runBlocking { GlobalContext.get().get<DiaryDao>().getChartPoints(ahora - DIAS_ANIMO * 86_400_000L, ahora).first() }
+        val c = MatrixCursor(COLUMNAS_ANIMO)
+        for (p in puntos.sortedByDescending { it.createdDate }) c.addRow(arrayOf<Any?>(p.createdDate, p.mood.value))
         return c
     }
 
@@ -83,6 +95,8 @@ class ProveedorTareas : ContentProvider() {
 
     companion object {
         val COLUMNAS_NOTAS = arrayOf("titulo", "contenido", "carpeta", "modificada")
+        val COLUMNAS_ANIMO = arrayOf("fecha", "animo")
+        private const val DIAS_ANIMO = 7
         private const val MAX_NOTAS = 400
         private const val MAX_TEXTO_NOTA = 6_000
         val COLUMNAS = arrayOf("id", "titulo", "descripcion", "vence", "prioridad", "completada", "repetitiva", "subtareas_pendientes")
