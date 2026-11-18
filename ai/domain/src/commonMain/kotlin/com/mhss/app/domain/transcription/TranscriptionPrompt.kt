@@ -6,99 +6,80 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 
 /**
- * Arma el prompt que se le da a una IA (Gemini, Grok, la IA configurada en Mi Cerebro…)
- * para convertir el audio o la transcripción de una clase/reunión en el Markdown que
+ * Arma el pedido que se le da a una IA (Gemini, Grok, ChatGPT, la IA configurada en Mi Cerebro…)
+ * para convertir un audio o un texto (clase, reunión o nota de voz personal) en líneas que
  * entiende [TranscriptionParser].
+ *
+ * Decisiones (probadas con las apps de Gemini y Grok el 18/11/2026):
+ * - Cada línea dice su tipo en texto plano (`- TAREA | …`, `NOTA: …`): el botón «Copiar» de
+ *   Gemini borra los `##` de los títulos, así que el formato no puede depender de ellos.
+ * - Es corto: con el pedido anterior (~4.300 caracteres) Grok ofrecía adjuntarlo como archivo.
+ * - El ejemplo es la especificación: los modelos imitan ejemplos mejor de lo que siguen reglas.
  */
 object TranscriptionPrompt {
 
     /**
-     * @param referenceDate fecha de la grabación (por defecto, hoy en el teléfono).
+     * @param referenceDate fecha de hoy en el teléfono.
      * @param timeZoneId zona horaria del teléfono, por ejemplo "America/Argentina/Jujuy".
-     * @param transcript si viene, se agrega al final (para procesarla con la IA de Mi Cerebro).
+     * @param transcript si viene, se agrega al final (para procesarlo con la IA de Mi Cerebro).
+     * @param currentTime hora actual "HH:MM", para que la IA no proponga horarios que ya pasaron.
+     * @param agenda eventos ya agendados de los próximos días, una línea por evento, para que
+     *   los horarios que proponga la IA no se superpongan. Vacío o null = no se incluye.
      */
     fun build(
         referenceDate: LocalDate,
         timeZoneId: String,
-        transcript: String? = null
+        transcript: String? = null,
+        currentTime: String? = null,
+        agenda: String? = null
     ): String {
-        val example1 = referenceDate.plus(2, DateTimeUnit.DAY)
+        val example1 = referenceDate.plus(1, DateTimeUnit.DAY)
         val example2 = referenceDate.plus(6, DateTimeUnit.DAY)
         val example3 = referenceDate.plus(9, DateTimeUnit.DAY)
-        val reference = "$referenceDate, ${referenceDate.dayOfWeek.spanishName()}"
+        val now = "$referenceDate (${referenceDate.dayOfWeek.spanishName()})" + (currentTime?.let { ", $it" } ?: "")
+        val busy = agenda?.trim().orEmpty()
 
-        val prompt = """
-Sos un asistente que convierte el audio o la transcripción de una clase o de una reunión en datos para importar en la app "Mi Cerebro" (tareas, calendario y notas).
+        val prompt = buildString {
+            append(
+                """
+Convertí el audio o texto adjunto (clase, reunión o nota de voz personal) en datos para mi app de agenda. Respondé SOLO con líneas del formato de abajo: sin saludo, sin comentarios, sin tablas y sin títulos.
 
-Fecha de la grabación/referencia: $reference
-Zona horaria del teléfono: $timeZoneId
+Hoy es $now, zona horaria $timeZoneId.
+""".trim()
+            )
+            if (busy.isNotEmpty()) append("\nYa tengo agendado:\n").append(busy)
+            append("\n\n")
+            append(
+                """
+FORMATO (ejemplo con datos inventados, no los copies):
+- TAREA | Leer el capítulo 3 | vence: $example1 | prioridad: alta
+- TAREA | Ordenar el escritorio | vence: $example1 16:00 | propuesto
+- TAREA | Llevar la calculadora
+- EVENTO | $example2 18:00-20:00 | Parcial de Física
+- EVENTO | $example3 | Entrega del TP 2
 
-Escuchá o leé TODO el contenido y respondé SOLO con Markdown: nada de texto antes ni después, sin saludos, sin explicaciones y sin encerrar la respuesta en un bloque de código. Usá exactamente estas cuatro secciones, con estos títulos y en este orden:
+NOTA: Título corto
+Texto de la nota.
 
-## Tareas
-## Fechas
-## Notas
-## Cuaderno
-
-Si una sección no tiene nada, escribí `Ninguna.` en la línea de abajo del título.
-
-FORMATO DE CADA SECCIÓN
-
-## Tareas
-Cosas que alguien tiene que hacer: trabajos prácticos, lecturas, ejercicios, pendientes, cosas para llevar. Una tarea por línea, con este formato exacto:
-- [ ] Título | vence: AAAA-MM-DD HH:MM | prioridad: alta
-• "vence" y "prioridad" son opcionales: agregalos solo si se dijeron (o si salen sin ninguna duda de lo que se dijo).
-• Si se dijo el día pero no la hora, poné solo `vence: AAAA-MM-DD`.
-• La prioridad solo puede ser `alta`, `media` o `baja`.
-
-## Fechas
-Todo lo que tenga un día concreto en el calendario: exámenes, parciales, entregas, reuniones, clases especiales, salidas, feriados. Uno por línea, con uno de estos formatos exactos:
-- AAAA-MM-DD HH:MM-HH:MM | Título
-- AAAA-MM-DD HH:MM | Título
-- AAAA-MM-DD | Título (todo el día)
-• Usá el primero si se sabe la hora de inicio y de fin, el segundo si solo se sabe la de inicio y el tercero si no se dijo la hora.
-• Si una entrega tiene día, va acá; y si además hay trabajo que hacer para esa entrega, agregá también la tarea en ## Tareas con el mismo "vence".
-
-## Notas
-Información útil que no es tarea ni fecha: avisos, acuerdos, decisiones, criterios de evaluación, materiales, links, datos de contacto. Cada nota así:
-### Título corto de la nota
-Texto de la nota en Markdown (párrafos o viñetas).
-
-## Cuaderno
-SOLO si en el audio o la transcripción hay contenido de clase o apuntes: temas explicados, definiciones, fórmulas, ejemplos y ejercicios del profe, lo que se dictó o se escribió en el pizarrón. Cada tema así:
-### Tema
-Apuntes ordenados en Markdown: subtítulos con ####, viñetas, definiciones en **negrita**, fórmulas, pasos y ejemplos.
-Si no hay contenido de clase (por ejemplo, si es una reunión), escribí `Ninguna.`
+CUADERNO: Tema de la clase
+Apuntes completos, con viñetas y **negrita**.
 
 REGLAS
-1. No inventes nada. Usá únicamente lo que se dice en el audio o en la transcripción. Si falta un dato (fecha, hora, prioridad, lugar), omitilo; no lo completes con suposiciones.
-2. Fechas relativas ("mañana", "el jueves", "la semana que viene", "dentro de 15 días"): calculalas SOLO a partir de la fecha de referencia de arriba. Si la fecha es ambigua o no se puede calcular con seguridad ("a fin de mes", "un día de estos", "después del parcial"), NO pongas una fecha: anotalo en ## Notas copiando la frase tal como se dijo.
-3. Fechas siempre como AAAA-MM-DD y horas como HH:MM en formato de 24 horas, en la zona horaria indicada. Sin segundos ni zona horaria.
-4. Una tarea o fecha por línea. No uses tablas ni el carácter | dentro de los títulos.
-5. Respetá el idioma original del audio o la transcripción para el contenido. Los títulos de sección (## Tareas, ## Fechas, ## Notas, ## Cuaderno) y las palabras `vence`, `prioridad` y `Ninguna.` van siempre así, en español.
-6. En ## Cuaderno no resumas de más: conservá completas las definiciones, fórmulas, pasos y ejemplos, en el orden en que se explicaron. Podés ordenar la redacción y sacar muletillas, pero no recortes contenido.
-7. Empezá la respuesta directamente con "## Tareas".
-
-EJEMPLO DE FORMATO (datos inventados solo para mostrar el formato; no los copies):
-## Tareas
-- [ ] Leer el capítulo 3 del apunte | vence: $example1 | prioridad: media
-- [ ] Llevar la calculadora científica
-## Fechas
-- $example2 18:00-20:00 | Parcial de Física I
-- $example3 | Entrega del TP 2 (todo el día)
-## Notas
-### Material de estudio
-El apunte está en la fotocopiadora del centro de estudiantes.
-## Cuaderno
-### Ley de Ohm
-- **Definición:** la corriente es proporcional a la tensión: V = I · R.
-- Ejemplo del profe: con R = 10 Ω y V = 5 V, la corriente es I = 0,5 A.
+1. TAREA = algo para hacer. EVENTO = algo con día fijo (examen, entrega, reunión, turno). "vence", la hora y "prioridad" (alta, media o baja) son opcionales. Fechas AAAA-MM-DD y horas de 24 h.
+2. Calculá las fechas relativas ("mañana", "el jueves") desde hoy. Una fecha dicha una sola vez vale para todo lo enumerado en esa frase: "mañana tengo que A, B y C" son tres tareas con vence mañana.
+3. No inventes fechas ni horas. Única excepción: si la persona pide que elijas vos ("ponelo cuando pueda", "no sé cuándo", "organizame el día"), elegí un día y una hora razonables, posteriores a ahora, que no se superpongan con lo que ya tengo agendado ni entre sí, y terminá esa línea con "| propuesto". Nunca propongas ni cambies exámenes, entregas ni nada que tenga fecha puesta por otra persona.
+4. Si una fecha quedó dudosa y nadie pidió que elijas, dejá la tarea sin "vence" y agregá "| dicho: la frase textual".
+5. NOTA solo para información que sirva después (avisos, acuerdos, datos, links). No hagas notas con saludos, presentaciones ni resúmenes del audio.
+6. CUADERNO solo si hay contenido de clase: conservá definiciones, fórmulas, pasos y ejemplos en orden, sin resumir de más.
+7. Orden: primero todas las TAREA y EVENTO, después las NOTA y al final el CUADERNO, con una línea en blanco antes de cada "NOTA:" y "CUADERNO:". Si no hay nada de un tipo, no escribas nada de ese tipo. Mantené el idioma del audio.
 """.trim()
+            )
+        }
 
         if (transcript.isNullOrBlank()) return prompt
         return buildString {
             append(prompt)
-            append("\n\nTRANSCRIPCIÓN (entre las líneas de comillas triples):\n\"\"\"\n")
+            append("\n\nTEXTO (entre las líneas de comillas triples):\n\"\"\"\n")
             append(transcript.trim())
             append("\n\"\"\"")
         }

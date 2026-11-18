@@ -50,7 +50,9 @@ sealed interface TranscriptionItem {
         val dueTime: LocalTime? = null,
         val priority: TranscriptionPriority? = null,
         val description: String? = null,
-        val warnings: List<TranscriptionWarning> = emptyList()
+        val warnings: List<TranscriptionWarning> = emptyList(),
+        /** La fecha la eligió la IA porque la persona se lo pidió («colocalo vos»): se muestra como sugerida. */
+        val proposed: Boolean = false
     ) : TranscriptionItem {
         override val section get() = TranscriptionSection.TASKS
     }
@@ -62,7 +64,8 @@ sealed interface TranscriptionItem {
         val startTime: LocalTime? = null,
         val endTime: LocalTime? = null,
         val description: String? = null,
-        val warnings: List<TranscriptionWarning> = emptyList()
+        val warnings: List<TranscriptionWarning> = emptyList(),
+        val proposed: Boolean = false
     ) : TranscriptionItem {
         override val section get() = TranscriptionSection.DATES
         val allDay: Boolean get() = startTime == null

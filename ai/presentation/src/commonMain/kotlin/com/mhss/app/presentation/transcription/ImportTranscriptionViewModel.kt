@@ -14,6 +14,7 @@ import com.mhss.app.domain.transcription.TranscriptionParser
 import com.mhss.app.domain.transcription.TranscriptionPrompt
 import com.mhss.app.domain.use_case.GenerateTranscriptionMarkdownUseCase
 import com.mhss.app.domain.use_case.GetAllCalendarsUseCase
+import com.mhss.app.domain.use_case.GetEventsWithinRangeUseCase
 import com.mhss.app.domain.use_case.ImportTranscriptionUseCase
 import com.mhss.app.preferences.PrefsConstants
 import com.mhss.app.preferences.domain.model.AiProvider
@@ -38,12 +39,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.Instant
+import com.mhss.app.domain.transcription.spanishName
 import org.koin.core.annotation.KoinViewModel
 
 data class ImportTranscriptionUiState(
     val prompt: String = "",
     val referenceDate: LocalDate? = null,
     val timeZoneId: String = "",
+    /** Suma al pedido lo que ya está agendado, para que la IA no proponga horarios ocupados. */
+    val includeAgenda: Boolean = true,
+    val agenda: String = "",
     val markdown: String = "",
     val transcript: String = "",
     val parsed: ParsedTranscription? = null,
@@ -70,6 +78,11 @@ sealed interface ImportTranscriptionEvent {
     data class SelectCalendar(val calendarId: Long) : ImportTranscriptionEvent
     data object ReloadCalendars : ImportTranscriptionEvent
     data object GenerateWithAi : ImportTranscriptionEvent
+    data class IncludeAgenda(val include: Boolean) : ImportTranscriptionEvent
+    /** La respuesta no se entendió: se la pasa a la IA de Mi Cerebro para que la ordene. */
+    data object FixWithAi : ImportTranscriptionEvent
+    /** La respuesta no se entendió: se guarda entera como una nota, para no perder nada. */
+    data object KeepAsNote : ImportTranscriptionEvent
     data object CancelAi : ImportTranscriptionEvent
     data object Import : ImportTranscriptionEvent
     data object DismissResult : ImportTranscriptionEvent
@@ -81,6 +94,7 @@ class ImportTranscriptionViewModel(
     private val generateMarkdown: GenerateTranscriptionMarkdownUseCase,
     private val importTranscription: ImportTranscriptionUseCase,
     private val getAllCalendars: GetAllCalendarsUseCase,
+    private val getEventsWithinRange: GetEventsWithinRangeUseCase,
     private val getPreference: GetPreferenceUseCase
 ) : ViewModel() {
 
@@ -93,13 +107,9 @@ class ImportTranscriptionViewModel(
     init {
         val today = currentLocalDate()
         val timeZoneId = TimeZone.currentSystemDefault().id
-        _uiState.update {
-            it.copy(
-                prompt = TranscriptionPrompt.build(today, timeZoneId),
-                referenceDate = today,
-                timeZoneId = timeZoneId
-            )
-        }
+        _uiState.update { it.copy(referenceDate = today, timeZoneId = timeZoneId) }
+        rebuildPrompt()
+        loadAgenda()
         viewModelScope.launch {
             markdownFlow
                 .debounce(PARSE_DEBOUNCE_MILLIS)
@@ -142,6 +152,16 @@ class ImportTranscriptionViewModel(
             is ImportTranscriptionEvent.SelectCalendar -> _uiState.update { it.copy(selectedCalendarId = event.calendarId) }
             ImportTranscriptionEvent.ReloadCalendars -> loadCalendars()
             ImportTranscriptionEvent.GenerateWithAi -> generateWithAi()
+            is ImportTranscriptionEvent.IncludeAgenda -> {
+                _uiState.update { it.copy(includeAgenda = event.include) }
+                rebuildPrompt()
+            }
+            ImportTranscriptionEvent.FixWithAi -> {
+                // El mismo pedido, con lo pegado como texto: la IA propia lo devuelve en el formato que sí se entiende
+                _uiState.update { it.copy(transcript = it.markdown) }
+                generateWithAi()
+            }
+            ImportTranscriptionEvent.KeepAsNote -> keepAsNote()
             ImportTranscriptionEvent.CancelAi -> {
                 aiJob?.cancel()
                 aiJob = null
@@ -158,6 +178,58 @@ class ImportTranscriptionViewModel(
     private fun setMarkdown(markdown: String) {
         _uiState.update { it.copy(markdown = markdown) }
         markdownFlow.value = markdown
+    }
+
+    private fun nowTime(): String {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        return now.hour.toString().padStart(2, '0') + ":" + now.minute.toString().padStart(2, '0')
+    }
+
+    private fun rebuildPrompt() {
+        _uiState.update { state ->
+            val date = state.referenceDate ?: currentLocalDate()
+            state.copy(
+                prompt = TranscriptionPrompt.build(
+                    referenceDate = date,
+                    timeZoneId = state.timeZoneId,
+                    currentTime = nowTime(),
+                    agenda = state.agenda.takeIf { state.includeAgenda }
+                )
+            )
+        }
+    }
+
+    /** Lo agendado de hoy y los próximos días, una línea corta por evento (solo título y horario). */
+    private fun loadAgenda() {
+        viewModelScope.launch {
+            val zone = TimeZone.currentSystemDefault()
+            val now = Clock.System.now().toEpochMilliseconds()
+            // Sin permiso de calendario esto falla: el pedido sale sin agenda
+            val events = runCatching { getEventsWithinRange(now, now + AGENDA_DAYS * DAY_MILLIS) }.getOrDefault(emptyList())
+            val agenda = events.sortedBy { it.start }.take(AGENDA_MAX_EVENTS).joinToString("\n") { event ->
+                val start = Instant.fromEpochMilliseconds(event.start).toLocalDateTime(zone)
+                val end = Instant.fromEpochMilliseconds(event.end).toLocalDateTime(zone)
+                fun hm(h: Int, m: Int) = h.toString().padStart(2, '0') + ":" + m.toString().padStart(2, '0')
+                val time = if (event.allDay) "todo el día" else hm(start.hour, start.minute) + "-" + hm(end.hour, end.minute)
+                "- ${start.date} (${start.date.dayOfWeek.spanishName()}) $time ${event.title.take(AGENDA_MAX_TITLE)}"
+            }
+            _uiState.update { it.copy(agenda = agenda) }
+            rebuildPrompt()
+        }
+    }
+
+    private fun keepAsNote() {
+        val state = _uiState.value
+        val text = state.markdown.trim()
+        if (text.isEmpty()) return
+        val title = "Importado " + (state.referenceDate ?: currentLocalDate())
+        val note = TranscriptionItem.NoteItem(id = 0, title = title, content = text, notebook = false)
+        _uiState.update {
+            it.copy(
+                parsed = ParsedTranscription(listOf(note), setOf(com.mhss.app.domain.transcription.TranscriptionSection.NOTES)),
+                selectedIds = setOf(0)
+            )
+        }
     }
 
     private fun loadCalendars() {
@@ -222,5 +294,9 @@ class ImportTranscriptionViewModel(
 
     private companion object {
         const val PARSE_DEBOUNCE_MILLIS = 250L
+        const val DAY_MILLIS = 86_400_000L
+        const val AGENDA_DAYS = 3
+        const val AGENDA_MAX_EVENTS = 12
+        const val AGENDA_MAX_TITLE = 40
     }
 }

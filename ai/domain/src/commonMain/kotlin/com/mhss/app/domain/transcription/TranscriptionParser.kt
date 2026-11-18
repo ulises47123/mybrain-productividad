@@ -36,8 +36,12 @@ object TranscriptionParser {
         private val lines: List<String> = markdown
             .replace("\r\n", "\n")
             .replace('\r', '\n')
+            // Espacios duros y marcas invisibles que meten las apps al copiar
+            .replace('\u00A0', ' ')
+            .replace("\u200B", "")
             .stripReasoningBlocks()
             .lines()
+            .let { TranscriptionNormalizer.normalize(it) }
 
         // Estado de la sección actual
         private var section: TranscriptionSection? = null
@@ -139,11 +143,13 @@ object TranscriptionParser {
             var dueDate: LocalDate? = null
             var dueTime: LocalTime? = null
             var priority: TranscriptionPriority? = null
+            var proposed = false
             val extra = mutableListOf<String>()
             val warnings = mutableListOf<TranscriptionWarning>()
 
             for (part in parts.drop(1)) {
                 if (part.isBlank()) continue
+                if (part.isProposedMark()) { proposed = true; continue }
                 val (key, value) = part.splitKeyValue()
                 when {
                     key != null && key in DUE_KEYS -> {
@@ -179,7 +185,9 @@ object TranscriptionParser {
                     dueTime = dueTime,
                     priority = priority,
                     description = extra.joinToString("\n").ifBlank { null },
-                    warnings = warnings.distinct()
+                    warnings = warnings.distinct(),
+                    // Solo tiene sentido marcar como sugerido algo que trae fecha
+                    proposed = proposed && dueDate != null
                 )
             )
         }
@@ -225,7 +233,8 @@ object TranscriptionParser {
                     end = null
                 }
             }
-            val others = parts.filterIndexed { index, _ -> index != dateIndex }.toMutableList()
+            val proposed = parts.any { it.isProposedMark() }
+            val others = parts.filterIndexed { index, part -> index != dateIndex && !part.isProposedMark() }.toMutableList()
             // Si la IA no puso el "|", el título quedó pegado después de la fecha
             val inlineTitle = match.groupValues[8].trim().trimStart('-', '–', '—', ':').trim()
             if (inlineTitle.isNotEmpty()) others.add(0, inlineTitle)
@@ -242,7 +251,8 @@ object TranscriptionParser {
                     startTime = start,
                     endTime = end,
                     description = others.drop(1).joinToString("\n").ifBlank { null },
-                    warnings = warnings.distinct()
+                    warnings = warnings.distinct(),
+                    proposed = proposed
                 )
             )
         }
@@ -369,6 +379,10 @@ object TranscriptionParser {
         return text.normalized() in EMPTY_MARKERS
     }
 
+    /** «propuesto» / «sugerido»: la IA eligió el horario porque la persona se lo pidió. */
+    private fun String.isProposedMark(): Boolean =
+        normalized().trim('*', '_', '(', ')', '.', ' ') in PROPOSED_MARKS
+
     private fun String.cleanTitle(): String =
         trim().trim('*', '_', '`').trim().trimEnd(':').trim()
 
@@ -409,6 +423,7 @@ object TranscriptionParser {
 
     private val DUE_KEYS = setOf("vence", "vencimiento", "fecha", "fecha limite", "limite", "due", "entrega", "para")
     private val PRIORITY_KEYS = setOf("prioridad", "priority", "prio")
+    private val PROPOSED_MARKS = setOf("propuesto", "propuesta", "sugerido", "sugerida", "proposed", "suggested")
     private val HORIZONTAL_RULE = Regex("""^\s*(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$""")
     private const val MAX_DERIVED_TITLE = 80
 

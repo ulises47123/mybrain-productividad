@@ -320,15 +320,24 @@ class TranscriptionParserTest {
 class TranscriptionPromptTest {
 
     @Test
-    fun includesReferenceDateTimeZoneAndSections() {
-        val prompt = TranscriptionPrompt.build(LocalDate(2026, 11, 17), "America/Argentina/Jujuy")
-        assertTrue(prompt.contains("Fecha de la grabación/referencia: 2026-11-17, martes"))
-        assertTrue(prompt.contains("Zona horaria del teléfono: America/Argentina/Jujuy"))
-        val order = listOf("## Tareas", "## Fechas", "## Notas", "## Cuaderno").map { prompt.indexOf(it) }
-        assertTrue(order.all { it >= 0 })
-        assertEquals(order.sorted(), order)
-        assertTrue(prompt.contains("Ninguna."))
-        assertFalse(prompt.contains("TRANSCRIPCIÓN"))
+    fun includesDateTimeZoneAndIsShort() {
+        val prompt = TranscriptionPrompt.build(LocalDate(2026, 11, 17), "America/Argentina/Jujuy", currentTime = "14:30")
+        assertTrue(prompt.contains("Hoy es 2026-11-17 (martes), 14:30, zona horaria America/Argentina/Jujuy."))
+        assertTrue(prompt.contains("- TAREA |"))
+        assertTrue(prompt.contains("- EVENTO |"))
+        assertTrue(prompt.contains("NOTA:"))
+        assertTrue(prompt.contains("CUADERNO:"))
+        assertFalse(prompt.contains("## "))
+        assertFalse(prompt.contains("Ya tengo agendado"))
+        assertFalse(prompt.contains("TEXTO (entre"))
+        // Con el pedido anterior (~4.300) Grok ofrecía adjuntarlo como archivo
+        assertTrue(prompt.length < 2_800, "el pedido mide ${prompt.length}")
+    }
+
+    @Test
+    fun includesAgendaWhenGiven() {
+        val prompt = TranscriptionPrompt.build(LocalDate(2026, 11, 17), "UTC", agenda = "- mié 18: 18:00-22:00 Clases\n")
+        assertTrue(prompt.contains("Ya tengo agendado:\n- mié 18: 18:00-22:00 Clases\n\nFORMATO"))
     }
 
     @Test
@@ -340,13 +349,133 @@ class TranscriptionPromptTest {
     @Test
     fun exampleInPromptIsParseable() {
         val prompt = TranscriptionPrompt.build(LocalDate(2026, 11, 17), "UTC")
-        val example = prompt.substringAfter("no los copies):\n")
+        val example = prompt.substringAfter("no los copies):\n").substringBefore("REGLAS")
         val parsed = TranscriptionParser.parse(example)
-        assertEquals(2, parsed.tasks.size)
+        assertEquals(3, parsed.tasks.size)
         assertEquals(2, parsed.events.size)
         assertEquals(1, parsed.notes.size)
         assertEquals(1, parsed.notebook.size)
         assertTrue(parsed.unrecognized.isEmpty())
+        assertEquals(LocalDate(2026, 11, 18), parsed.tasks[0].dueDate)
+        assertFalse(parsed.tasks[0].proposed)
+        assertTrue(parsed.tasks[1].proposed)
+        assertEquals(LocalTime(16, 0), parsed.tasks[1].dueTime)
+    }
+}
+
+/** Lo que de verdad llega al portapapeles desde las apps de IA (capturado el 18/11/2026). */
+class TranscriptionRealWorldTest {
+
+    /** Gemini (Android), botón Copiar: borra los ## y ### y cambia las viñetas a « * ». */
+    private val geminiCopied = """
+Tareas
+ * [ ] Ordenar el cuarto | vence: 2026-11-19
+ * [ ] Lavar los platos
+ * [ ] Regar las plantas
+ * [ ] Sacar la basura
+ * [ ] Ver una película
+ * [ ] Doblar la ropa
+Fechas
+Ninguna.
+Notas
+Película
+quiero ver una película pero no sé cuándo, puede ser hoy o mañana
+Cuaderno
+Ninguna.
+"""
+
+    @Test
+    fun geminiCopyWithoutHashesIsUnderstood() {
+        val parsed = TranscriptionParser.parse(geminiCopied)
+        assertFalse(parsed.noSectionsFound)
+        assertEquals(6, parsed.tasks.size)
+        assertEquals("Ordenar el cuarto", parsed.tasks[0].title)
         assertEquals(LocalDate(2026, 11, 19), parsed.tasks[0].dueDate)
+        assertTrue(parsed.events.isEmpty())
+        val note = parsed.notes.single()
+        assertEquals("Película", note.title)
+        assertTrue(note.content.startsWith("quiero ver una película"))
+        assertTrue(parsed.notebook.isEmpty())
+        assertTrue(parsed.unrecognized.isEmpty())
+    }
+
+    @Test
+    fun bareSectionWordInsideANoteDoesNotOpenASection() {
+        val parsed = TranscriptionParser.parse(
+            "Tareas\n * [ ] Estudiar\nNotas\nReunión\nHablamos de las\nTareas\nde la semana y de las\nNotas\nfinales.\nCuaderno\nNinguna."
+        )
+        assertEquals(1, parsed.tasks.size)
+        val note = parsed.notes.single()
+        assertEquals("Reunión", note.title)
+        assertTrue(note.content.contains("Tareas\nde la semana"))
+        assertTrue(note.content.contains("Notas\nfinales."))
+    }
+
+    @Test
+    fun hashFormatIsLeftAlone() {
+        val parsed = TranscriptionParser.parse("## Notas\n### Acuerdo\nHablamos de:\nNotas\nTarea: nada raro\n## Cuaderno\nNinguna.")
+        val note = parsed.notes.single()
+        assertEquals("Acuerdo", note.title)
+        assertTrue(note.content.contains("Notas\nTarea: nada raro"))
+        assertTrue(parsed.tasks.isEmpty())
+    }
+
+    @Test
+    fun typedLinesFormat() {
+        val parsed = TranscriptionParser.parse(
+            """
+Acá tenés lo que pediste:
+
+- TAREA | Limpiar mi pieza | vence: 2026-11-19
+* TAREA | Ver una película | vence: 2026-11-18 21:00 | propuesto
+• **TAREA** | Comprar pan | dicho: un día de estos
+- EVENTO | 2026-11-24 18:00-20:00 | Parcial de Física
+- EVENTO | 2026-11-27 | Entrega del TP 2
+
+NOTA: Material
+El apunte está en la fotocopiadora.
+- Precio: 500 pesos
+
+NOTA: Criterios
+Se aprueba con 6.
+
+CUADERNO: Ley de Ohm
+- **Definición:** V = I · R
+## Ejemplo
+R = 10 Ω
+""".trimIndent()
+        )
+        assertEquals(listOf("Limpiar mi pieza", "Ver una película", "Comprar pan"), parsed.tasks.map { it.title })
+        assertEquals(listOf(false, true, false), parsed.tasks.map { it.proposed })
+        assertEquals(LocalTime(21, 0), parsed.tasks[1].dueTime)
+        assertEquals("dicho: un día de estos", parsed.tasks[2].description)
+        assertNull(parsed.tasks[2].dueDate)
+        assertEquals(2, parsed.events.size)
+        assertEquals("Parcial de Física", parsed.events[0].title)
+        assertTrue(parsed.events[1].allDay)
+        assertEquals(listOf("Material", "Criterios"), parsed.notes.map { it.title })
+        assertTrue(parsed.notes[0].content.contains("- Precio: 500 pesos"))
+        val notebook = parsed.notebook.single()
+        assertEquals("Ley de Ohm", notebook.title)
+        assertTrue(notebook.content.contains("#### Ejemplo"))
+        assertTrue(parsed.unrecognized.isEmpty())
+    }
+
+    @Test
+    fun typedLinesWithoutBulletsOrInsideACodeFence() {
+        val parsed = TranscriptionParser.parse(
+            "```\nTAREA | Doblar la ropa\nEVENTO | 2026-11-20 10:00 | Dentista | propuesto\n```"
+        )
+        assertEquals("Doblar la ropa", parsed.tasks.single().title)
+        val event = parsed.events.single()
+        assertEquals("Dentista", event.title)
+        assertTrue(event.proposed)
+    }
+
+    @Test
+    fun proseIsNotMistakenForTypedLines() {
+        val parsed = TranscriptionParser.parse("## Notas\n### Aviso\nTarea: leer el capítulo 3.\nNota: traer DNI.")
+        assertTrue(parsed.tasks.isEmpty())
+        assertEquals(1, parsed.notes.size)
     }
 }

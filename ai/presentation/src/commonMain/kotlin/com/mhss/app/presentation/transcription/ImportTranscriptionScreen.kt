@@ -91,9 +91,12 @@ import com.mhss.app.ui.transcription_due
 import com.mhss.app.ui.transcription_hide_prompt
 import com.mhss.app.ui.transcription_import_selected
 import com.mhss.app.ui.transcription_importing
+import com.mhss.app.ui.transcription_include_agenda
+import com.mhss.app.ui.transcription_fix_with_ai
+import com.mhss.app.ui.transcription_keep_as_note
+import com.mhss.app.ui.transcription_proposed
 import com.mhss.app.ui.transcription_markdown_hint
 import com.mhss.app.ui.transcription_no_sections
-import com.mhss.app.ui.transcription_nothing_found
 import com.mhss.app.ui.transcription_open_integrations
 import com.mhss.app.ui.transcription_paste
 import com.mhss.app.ui.transcription_preview_title
@@ -195,6 +198,23 @@ fun ImportTranscriptionScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    if (state.agenda.isNotBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.onEvent(ImportTranscriptionEvent.IncludeAgenda(!state.includeAgenda)) }
+                        ) {
+                            Checkbox(
+                                checked = state.includeAgenda,
+                                onCheckedChange = { viewModel.onEvent(ImportTranscriptionEvent.IncludeAgenda(it)) }
+                            )
+                            Text(
+                                text = stringResource(Res.string.transcription_include_agenda),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -350,6 +370,9 @@ fun ImportTranscriptionScreen(
                     selectedIds = state.selectedIds,
                     onToggle = { viewModel.onEvent(ImportTranscriptionEvent.ToggleItem(it)) },
                     onSelectAll = { viewModel.onEvent(ImportTranscriptionEvent.SelectAll(it)) },
+                    canFixWithAi = state.aiEnabled && !state.aiLoading,
+                    onFixWithAi = { viewModel.onEvent(ImportTranscriptionEvent.FixWithAi) },
+                    onKeepAsNote = { viewModel.onEvent(ImportTranscriptionEvent.KeepAsNote) },
                     calendarSelector = {
                         if (state.calendars.isNotEmpty()) {
                             CalendarSelector(
@@ -405,6 +428,9 @@ private fun LazyListScope.previewItems(
     selectedIds: Set<Int>,
     onToggle: (Int) -> Unit,
     onSelectAll: (Boolean) -> Unit,
+    canFixWithAi: Boolean,
+    onFixWithAi: () -> Unit,
+    onKeepAsNote: () -> Unit,
     calendarSelector: @Composable () -> Unit
 ) {
     item(key = "preview_header") {
@@ -415,9 +441,16 @@ private fun LazyListScope.previewItems(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
             when {
-                parsed.noSectionsFound -> WarningText(stringResource(Res.string.transcription_no_sections))
-                parsed.importable.isEmpty() && parsed.unrecognized.isEmpty() ->
-                    WarningText(stringResource(Res.string.transcription_nothing_found))
+                // Nunca un callejón sin salida: si no se entendió, se puede ordenar con la IA propia o guardar tal cual
+                parsed.importable.isEmpty() -> Column {
+                    WarningText(stringResource(Res.string.transcription_no_sections))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 4.dp)) {
+                        if (canFixWithAi) {
+                            Button(onClick = onFixWithAi) { Text(stringResource(Res.string.transcription_fix_with_ai)) }
+                        }
+                        OutlinedButton(onClick = onKeepAsNote) { Text(stringResource(Res.string.transcription_keep_as_note)) }
+                    }
+                }
                 parsed.importable.isNotEmpty() -> Row {
                     TextButton(onClick = { onSelectAll(true) }) { Text(stringResource(Res.string.transcription_select_all)) }
                     TextButton(onClick = { onSelectAll(false) }) { Text(stringResource(Res.string.transcription_select_none)) }
@@ -496,6 +529,7 @@ private fun PreviewItemCard(
                             item.priority?.let { add(stringResource(it.labelRes())) }
                         }
                         if (details.isNotEmpty()) ItemDetail(details.joinToString(" · "))
+                        if (item.proposed) ProposedText()
                         item.description?.let { ItemDetail(it) }
                         item.warnings.forEach { WarningText(stringResource(it.labelRes())) }
                     }
@@ -509,6 +543,7 @@ private fun PreviewItemCard(
                             else -> start.pretty()
                         }
                         ItemDetail("${item.date.pretty()} · $time")
+                        if (item.proposed) ProposedText()
                         item.description?.let { ItemDetail(it) }
                         item.warnings.forEach { WarningText(stringResource(it.labelRes())) }
                     }
@@ -646,6 +681,16 @@ private fun ItemDetail(text: String) {
         text = text,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+/** El horario lo eligió la IA porque se lo pediste: se distingue de lo que se dijo en el audio. */
+@Composable
+private fun ProposedText() {
+    Text(
+        text = stringResource(Res.string.transcription_proposed),
+        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+        color = MaterialTheme.colorScheme.primary
     )
 }
 
